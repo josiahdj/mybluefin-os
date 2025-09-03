@@ -18,3 +18,20 @@ modules:
 
   - type: signing # this sets up the proper policy & signing files for signed images to work fully
 
+  - type: script
+    scripts:
+      - enable-chrome-yum-repo.sh
+
+  - type: rpm-ostree
+    install:
+      - langpacks-en
+      - google-roboto-mono-fonts
+      - google-roboto-fonts
+      - google-crosextra-caladea-fonts
+      - google-crosextra-carlito-fonts
+      - liberation-fonts
+      - fontawesome-fonts
+      - libreoffice-opensymbol-fonts
+      - google-chrome-stable
+    optfix:
+      - google      
