@@ -24,12 +24,15 @@ modules:
 
   - type: rpm-ostree
     install:
-      - langpacks-en
       - google-roboto-mono-fonts
       - google-roboto-fonts
       - google-crosextra-caladea-fonts
       - google-crosextra-carlito-fonts
       - liberation-fonts
+      - sil-charis-fonts
+      - sil-charis-compact-fonts
+      - sil-andika-fonts
+      - sil-andika-compact-fonts
       - fontawesome-fonts
       - libreoffice-opensymbol-fonts
       - google-chrome-stable
