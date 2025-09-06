@@ -1,9 +1,9 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 # image will be published to ghcr.io/<user>/<name>
-name: mybluefin-os
+name: mybluefin-dx-nvidia
 # description will be included in the image's metadata
-description: This is my personal Bluefin OS image, with Chrome and 1Password.
+description: This is my personal Bluefin OS dx image, with Chrome and 1Password.
 
 # the base image to build on top of (FROM) and the version tag to use
 base-image: ghcr.io/ublue-os/bluefin-dx-nvidia
