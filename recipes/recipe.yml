@@ -1,12 +1,12 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 # image will be published to ghcr.io/<user>/<name>
-name: mybluefin-dx-nvidia
+name: mybluefin-dx
 # description will be included in the image's metadata
 description: This is my personal Bluefin OS dx image, with Chrome and 1Password.
 
 # the base image to build on top of (FROM) and the version tag to use
-base-image: ghcr.io/ublue-os/bluefin-dx-nvidia
+base-image: ghcr.io/ublue-os/bluefin-dx
 image-version: latest # latest is also supported if you want new updates ASAP
 
 # module configuration, executed in order
@@ -24,17 +24,15 @@ modules:
 
   - type: rpm-ostree
     install:
-      - google-roboto-mono-fonts
-      - google-roboto-fonts
-      - google-crosextra-caladea-fonts
-      - google-crosextra-carlito-fonts
-      - liberation-fonts
-      - sil-charis-fonts
-      - sil-charis-compact-fonts
-      - sil-andika-fonts
-      - sil-andika-compact-fonts
-      - fontawesome-fonts
-      - libreoffice-opensymbol-fonts
       - google-chrome-stable
     optfix:
-      - google      
+      - google
+
+  - type: dnf
+    repos: 
+      copr:
+        - principis/howdy-beta
+    install:
+      packages:
+        - howdy
+        - howdy-gtk
