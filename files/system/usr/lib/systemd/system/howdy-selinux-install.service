@@ -1,0 +1,14 @@
+[Unit]
+Description=Install Howdy SELinux policy
+Before=multi-user.target
+After=local-fs.target
+DefaultDependencies=no
+RequiresMountsFor=/etc/selinux /var/lib/selinux
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/howdy-selinux-setup
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

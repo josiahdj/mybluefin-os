@@ -29,10 +29,22 @@ modules:
       - google
 
   - type: dnf
-    repos: 
+    repos:
       copr:
         - principis/howdy-beta
     install:
       packages:
         - howdy
         - howdy-gtk
+
+  - type: rpm-ostree
+    install:
+      - policycoreutils
+      - selinux-policy-targeted
+      - checkpolicy
+      - policycoreutils-python-utils
+      - selinux-policy-devel
+
+  - type: script
+    scripts:
+      - install-howdy-selinux.sh
