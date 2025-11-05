@@ -31,11 +31,14 @@ modules:
   - type: dnf
     repos:
       copr:
-        - principis/howdy-beta
+        #- principis/howdy-beta
+        - starfish/howdy-beta
+        - scottames/ghostty
     install:
       packages:
         - howdy
         - howdy-gtk
+        - ghostty
 
   - type: rpm-ostree
     install:
