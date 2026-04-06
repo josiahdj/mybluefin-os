@@ -6,12 +6,19 @@ name: mybluefin-dx
 description: This is my personal Bluefin OS dx image, with Chrome and 1Password.
 
 # the base image to build on top of (FROM) and the version tag to use
-base-image: ghcr.io/ublue-os/bluefin-dx
+base-image: ghcr.io/ublue-os/bluefin-dx-nvidia
 image-version: latest # latest is also supported if you want new updates ASAP
 
 # module configuration, executed in order
 # you can include multiple instances of the same module
 modules:
+  - type: kargs
+    kargs:
+      - amd_iommu=on
+      - iommu=pt
+      - kvm.ignore_msrs=1
+      - kvm.report_ignored_msrs=0
+
   - type: bling
     install:
       - 1password # install 1Password (stable) and `op` CLI tool
