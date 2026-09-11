@@ -4,6 +4,11 @@ See the [BlueBuild docs](https://blue-build.org/how-to/setup/) for quick setup i
 
 After setup, it is recommended you update this README to describe your custom image.
 
+## Documentation
+
+- [Howdy face unlock](docs/howdy/README.md): how it's wired, switching IR cameras, troubleshooting
+- [VFIO GPU passthrough](docs/vfio-passthrough/README.md)
+
 ## Installation
 
 > [!WARNING]  
