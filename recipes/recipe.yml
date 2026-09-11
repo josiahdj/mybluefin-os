@@ -53,6 +53,13 @@ modules:
         - howdy-gtk
         - ghostty
 
+  # The scottames/ghostty COPR build above doesn't vendor ghostty's upstream
+  # theme set, so /usr/share/ghostty/themes never gets created and any
+  # `theme = <name>` config value is unresolvable. This fetches it ourselves.
+  - type: script
+    scripts:
+      - install-ghostty-themes.sh
+
   # Not installing selinux-policy-devel: it hard-requires an exact-version
   # match to the selinux-policy build already pinned in the base image
   # (currently 42.13-1.fc42), and that specific build's RPM has been pruned
