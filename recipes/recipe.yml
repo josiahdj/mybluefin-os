@@ -68,6 +68,15 @@ modules:
       - checkpolicy
       - policycoreutils-python-utils
 
+  # Copies files/system/* into the image root. This is what ships
+  # howdy-selinux-install.service (and its multi-user.target.wants symlink),
+  # which loads the howdy_gdm SELinux module at boot.
+  - type: files
+    files:
+      - source: system
+        destination: /
+
   - type: script
     scripts:
       - install-howdy-selinux.sh
+      - configure-howdy.sh
