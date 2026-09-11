@@ -52,23 +52,36 @@ sys.exit(0 if avd.allowed & selinux.string_to_av_perm(cls, "map") else 1)
 PY
 }
 
-# Name any policy.N file with a higher version than the one semodule last
-# wrote. The kernel loads the highest version it supports, so such a file (e.g.
-# left in the host's /etc by an older image with a newer toolchain) shadows
-# the current policy, and every module installed since is silently ignored.
+# The policy.N version semodule writes: semanage.conf's policy-version if set,
+# else libsepol's newest, which is libsemanage's default.
+policy_write_version() {
+  local v
+  v="$(sed -n 's/^[[:space:]]*policy-version[[:space:]]*=[[:space:]]*//p' /etc/selinux/semanage.conf 2>/dev/null)"
+  [ -n "$v" ] || v="$(python3 -c 'import ctypes; print(ctypes.CDLL("libsepol.so.2").sepol_policy_kern_vers_max())' 2>/dev/null)"
+  echo "$v"
+}
+
+# The newest policy version the running kernel accepts.
+kernel_policy_version() { cat /sys/fs/selinux/policyvers 2>/dev/null; }
+
+# Name any policy.N file that outranks the version semodule writes. When
+# loading, libselinux tries policy.<kernel max> and counts down, taking the
+# first file that exists. So a file with write version < N <= kernel max (e.g.
+# left in the host's /etc by an older image with a newer toolchain) shadows the
+# current policy, and every module installed since is silently ignored.
 report_stale_policy() {
-  local f newest="" found=1
-  local -a files=()
+  local f n writes kmax found=1
+  writes="$(policy_write_version)"
+  kmax="$(kernel_policy_version)"
+  if ! [[ "$writes" =~ ^[0-9]+$ && "$kmax" =~ ^[0-9]+$ ]]; then
+    warn "could not determine policy versions (semodule writes '$writes', kernel accepts '$kmax'); not checking $POLDIR for stale files"
+    return 1
+  fi
   for f in "$POLDIR"/policy.*; do
-    [[ -f "$f" && "${f##*.}" =~ ^[0-9]+$ ]] && files+=("$f")
-  done
-  for f in "${files[@]}"; do
-    if [ -z "$newest" ] || [ "$f" -nt "$newest" ]; then newest="$f"; fi
-  done
-  [ -n "$newest" ] || return 1
-  for f in "${files[@]}"; do
-    if [ "${f##*.}" -gt "${newest##*.}" ]; then
-      warn "stale policy file $f (modified $(date -r "$f" +%F)) outranks $newest, which semodule wrote; the kernel loads $f instead. If it is a leftover, move it out of $POLDIR and run load_policy. See docs/howdy/README.md in the image repo."
+    n="${f##*.}"
+    [[ -f "$f" && "$n" =~ ^[0-9]+$ ]] || continue
+    if (( n > writes && n <= kmax )); then
+      warn "stale policy file $f (modified $(date -r "$f" +%F)) outranks policy.$writes, which is what semodule writes; the kernel loads $f instead. If it is a leftover, move it out of $POLDIR and run load_policy. See docs/howdy/README.md in the image repo."
       found=0
     fi
   done
