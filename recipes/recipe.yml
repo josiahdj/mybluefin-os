@@ -19,9 +19,15 @@ modules:
       - kvm.ignore_msrs=1
       - kvm.report_ignored_msrs=0
 
-  - type: bling
-    install:
-      - 1password # install 1Password (stable) and `op` CLI tool
+  # Not using the "bling" module's 1password installer here: it hardcodes
+  # /opt/1Password/resources/1password.desktop, which the 1Password RPM
+  # renamed to com.onepassword.OnePassword.desktop as of 8.12.x, breaking
+  # the build. The RPM already installs desktop entries/icons directly to
+  # /usr/share/applications and /usr/share/icons, so this script does the
+  # same setup (repo, GIDs, setuid/setgid bits) without that broken step.
+  - type: script
+    scripts:
+      - install-1password.sh # install 1Password (stable) and `op` CLI tool
 
   - type: signing # this sets up the proper policy & signing files for signed images to work fully
 
@@ -47,13 +53,20 @@ modules:
         - howdy-gtk
         - ghostty
 
+  # Not installing selinux-policy-devel: it hard-requires an exact-version
+  # match to the selinux-policy build already pinned in the base image
+  # (currently 42.13-1.fc42), and that specific build's RPM has been pruned
+  # from Fedora's updates-archive mirror (repodata still lists it, but the
+  # file 404s), which breaks resolution. It's also unneeded here:
+  # install-howdy-selinux.sh already falls back to the raw checkmodule +
+  # semodule_package toolchain (from checkpolicy/policycoreutils below) when
+  # /usr/share/selinux/devel/Makefile isn't present.
   - type: rpm-ostree
     install:
       - policycoreutils
       - selinux-policy-targeted
       - checkpolicy
       - policycoreutils-python-utils
-      - selinux-policy-devel
 
   - type: script
     scripts:
