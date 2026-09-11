@@ -33,9 +33,10 @@ polkit prompts, the GDM login screen and the lock screen with an IR camera.
 |-------|----------|-------------------|
 | `howdy`, `howdy-gtk` packages | `recipes/recipe.yml` (dnf module) | yes |
 | `detection_notice = true` | `files/scripts/configure-howdy.sh` | default only (see below) |
+| `device_path` (current camera; previous cameras as commented-out lines) | `files/scripts/configure-howdy.sh` (`DEVICE_PATH`, `PREVIOUS_DEVICE_PATHS`) | default only (see below) |
 | SELinux module `howdy_gdm` (lets GDM/lock screen map the camera) | `files/selinux/howdy_gdm.te`, `files/scripts/install-howdy-selinux.sh`, `howdy-selinux-install.service` | yes, loaded at boot |
 | `-ifNN` by-id camera links | `files/system/usr/lib/udev/rules.d/70-v4l-by-id-interface.rules` | yes |
-| `device_path`, `timeout`, `certainty`, etc. | `/etc/howdy/config.ini` | **host only** |
+| `timeout`, `certainty`, etc., and the live `device_path` | `/etc/howdy/config.ini` | **host only** |
 | Enrolled face models | `/etc/howdy/models/` | **host only** |
 | `auth sufficient pam_howdy.so` | `/etc/pam.d/system-auth` (hand-edited, not authselect) | **host only** |
 
@@ -99,7 +100,12 @@ module both work for any camera.
    preview), then `sudo -k; sudo true`, then lock the screen (Super+L). If
    frames are rejected as too dark, lower `dark_threshold` in the config.
 
-6. **Update the "Current Hardware" section above.**
+6. **Update the image default** so fresh installs use the new camera: in
+   `files/scripts/configure-howdy.sh`, move the old `DEVICE_PATH` into
+   `PREVIOUS_DEVICE_PATHS` and set `DEVICE_PATH` to the new link. This does not
+   change the host (see "Where Each Piece Lives"); step 3 did that.
+
+7. **Update the "Current Hardware" section above.**
 
 A non-USB camera (e.g. a laptop's built-in MIPI IR camera) would not get an
 `-ifNN` link. Check `udevadm info /dev/videoN` for a stable property and
