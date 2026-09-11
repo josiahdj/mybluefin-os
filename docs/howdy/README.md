@@ -115,12 +115,28 @@ extend the udev rule.
     `journalctl -k -b | grep -c 'USB disconnect'`). Rebooting the PC does not
     fix that, because the dock stays powered. Unplug the dock's power for
     about 30 seconds.
-- **sudo works, but GDM/lock screen does not**: this points at SELinux.
-  - Check the module is loaded: `sudo semodule -l | grep howdy_gdm` and
-    `systemctl status howdy-selinux-install.service`
+- **sudo works, but GDM/lock screen does not**: this points at SELinux. The
+  journal shows `AVC denied { map } ... scontext=...xdm_t ... v4l_device_t`
+  and `failed mmap(...): errno=13`.
+  - Check the setup service: `systemctl status howdy-selinux-install.service`.
+    On every boot it verifies that the running kernel policy contains the
+    rule. If it doesn't, the service fails and logs why.
+  - Check the module is installed: `sudo semodule -l | grep howdy_gdm`
   - Check for denials: `sudo ausearch -m avc -ts recent | grep -E 'v4l|video'`
   - Fedora runs every display manager as `xdm_t`; there are no
     `gdm_t`/`sddm_t` types.
+- **Module installed, but the kernel still denies `map`**: look for a stale
+  compiled policy with `ls -l /etc/selinux/targeted/policy/`. The kernel loads
+  the highest-numbered `policy.N` it supports, and `semodule` writes the version
+  its own toolchain defaults to. In Sep 2026 this machine had a leftover
+  `policy.35` from Feb 2026, while the image's toolchain wrote `policy.34`. So
+  every boot loaded February's policy, and every module installed since was
+  ignored. Host `/etc` survives rebases, so the file never went away. Fix:
+  `sudo mv /etc/selinux/targeted/policy/policy.35 /root/` then
+  `sudo load_policy`. To confirm, without root:
+  ```bash
+  python3 -c 'import selinux as s; c=s.string_to_security_class("chr_file"); a=s.av_decision(); s.security_compute_av("system_u:system_r:xdm_t:s0-s0:c0.c1023","system_u:object_r:v4l_device_t:s0",c,0,a); print("map allowed:", bool(a.allowed & s.string_to_av_perm(c,"map")))'
+  ```
 - **GNOME's polkit dialog only appears after the scan has timed out**:
   `detection_notice` must be `true`. GNOME opens the dialog only once PAM
   sends a message, so without the notice the scan runs with nothing on
