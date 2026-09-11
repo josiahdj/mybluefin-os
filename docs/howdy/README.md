@@ -5,21 +5,27 @@ polkit prompts, the GDM login screen and the lock screen with an IR camera.
 
 ## Current Hardware
 
-- **Camera**: iContact Camera Pro Hello, plugged into the Microsoft Surface
-  Thunderbolt 4 Dock. It shows up as two USB devices behind a small built-in
-  hub:
+- **Camera**: Logitech BRIO (`046d:085e`, serial `511030C9`), plugged
+  straight into a PC USB port (controller `0000:16:00.4`), not the dock. It
+  is one UVC function, so all four video nodes hang off interface `00`, and
+  the `video-indexN` suffix tells them apart:
 
-  | USB device | Interface | Stream | Formats | Used by Howdy |
-  |------------|-----------|--------|---------|---------------|
-  | Realtek `0bda:5856` "iContact Camera Pro Hello Color Camera", serial `YHTEK` | `00` | RGB | MJPG/YUYV 640x480 | no |
-  | Realtek `0bda:5856` (same device) | `02` | **IR** | **GREY** 640x480, 640x360 | **yes** |
-  | Sunplus `1bcf:2d3e` "iContact Camera Pro Hello" | `00` | RGB 4K (plus a mic) | MJPG/YUYV up to 3840x2160 | no |
-
-  The names are misleading: the device called "Color Camera" is the one
-  carrying the IR stream, and the one called "Hello" is the 4K webcam.
+  | Node | Stream | Formats | Used by Howdy |
+  |------|--------|---------|---------------|
+  | `-if00-video-index0` | RGB | MJPG/YUYV up to 1920x1080 | no |
+  | `-if00-video-index1` | metadata | none | no |
+  | `-if00-video-index2` | **IR** | **GREY** 340x340 | **yes** |
+  | `-if00-video-index3` | metadata | none | no |
 
 - **Howdy `device_path`**:
-  `/dev/v4l/by-id/usb-DECXIN_iContact_Camera_Pro_Hello_Color_Camera_YHTEK-if02-video-index0`
+  `/dev/v4l/by-id/usb-046d_Logitech_BRIO_511030C9-if00-video-index2`
+
+- **Previous camera** (until Sep 2026): iContact Camera Pro Hello on the
+  dock. That was a composite of two USB devices. Its IR stream was the Realtek
+  `0bda:5856` "Color Camera" (serial `YHTEK`), interface `02`, at
+  `/dev/v4l/by-id/usb-DECXIN_iContact_Camera_Pro_Hello_Color_Camera_YHTEK-if02-video-index0`.
+  The names were misleading: the "Color Camera" carried the IR stream, and the
+  Sunplus `1bcf:2d3e` "Hello" device was the 4K RGB webcam.
 
 ## Where Each Piece Lives
 
@@ -109,8 +115,8 @@ extend the udev rule.
   - Check that the configured device exists:
     `ls -l "$(sed -n 's/^device_path *= *//p' /etc/howdy/config.ini)"`
   - Check that the camera enumerated: `lsusb`
-  - The camera sits behind the dock. If the dock gets wedged, it loops
-    through USB resets (kernel log shows `error -71` and repeated
+  - If the camera is plugged into the dock (the previous camera was) and the
+    dock gets wedged, it loops through USB resets (kernel log shows `error -71` and repeated
     `USB disconnect`; count them with
     `journalctl -k -b | grep -c 'USB disconnect'`). Rebooting the PC does not
     fix that, because the dock stays powered. Unplug the dock's power for
