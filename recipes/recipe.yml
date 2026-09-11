@@ -70,7 +70,8 @@ modules:
 
   # Copies files/system/* into the image root. This is what ships
   # howdy-selinux-install.service (and its multi-user.target.wants symlink),
-  # which loads the howdy_gdm SELinux module at boot.
+  # which loads the howdy_gdm SELinux module at boot, and the udev rule that
+  # gives each camera interface a stable by-id link (see docs/howdy/README.md).
   - type: files
     files:
       - source: system

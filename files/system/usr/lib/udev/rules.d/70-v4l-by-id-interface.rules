@@ -1,0 +1,13 @@
+# The stock /dev/v4l/by-id links (60-persistent-v4l.rules) are named only by
+# USB serial and index, so a camera that exposes several video interfaces has
+# every interface fight over one link. The iContact Camera Pro Hello does
+# this: its RGB stream (interface 00) and IR stream (interface 02) both claim
+# ...-video-index0, and which one wins can change from boot to boot.
+#
+# This adds a variant that includes the interface number, so each stream gets
+# a stable, unique by-id name, e.g.
+#   /dev/v4l/by-id/usb-<ID_SERIAL>-if02-video-index0
+# Howdy's device_path should point at one of these. See docs/howdy/README.md
+# for how to find the IR stream when switching cameras.
+SUBSYSTEM=="video4linux", ENV{ID_BUS}=="usb", ENV{ID_SERIAL}=="?*", ENV{ID_USB_INTERFACE_NUM}=="?*", ATTR{index}=="?*", \
+  SYMLINK+="v4l/by-id/usb-$env{ID_SERIAL}-if$env{ID_USB_INTERFACE_NUM}-video-index$attr{index}"
