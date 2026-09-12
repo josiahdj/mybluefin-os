@@ -38,12 +38,76 @@ polkit prompts, the GDM login screen and the lock screen with an IR camera.
 | `-ifNN` by-id camera links | `files/system/usr/lib/udev/rules.d/70-v4l-by-id-interface.rules` | yes |
 | `timeout`, `certainty`, etc., and the live `device_path` | `/etc/howdy/config.ini` | **host only** |
 | Enrolled face models | `/etc/howdy/models/` | **host only** |
-| `auth sufficient pam_howdy.so` | `/etc/pam.d/system-auth` (hand-edited, not authselect) | **host only** |
+| `auth sufficient pam_howdy.so` | `/etc/authselect/custom/howdy/system-auth`, surfaced at `/etc/pam.d/system-auth` (see [PAM and authselect](#pam-and-authselect)) | **host only** |
+| `auth sufficient pam_howdy.so` (login/lock screen) | `/etc/pam.d/gdm-password`, `gdm-fingerprint`, `gdm-autologin` — not authselect-managed | **host only** |
 
 `/etc/howdy/config.ini` is a `%config(noreplace)` file that has been edited on
 the host. rpm-ostree's `/etc` merge keeps the host copy, so changing the
 image's default does nothing on an existing install. Edit it on the host with
 `sudo howdy config` or `sed`.
+
+## PAM and authselect
+
+Howdy needs one line, `auth sufficient pam_howdy.so`, in `system-auth`. That
+file is owned by authselect, so the line is carried by a custom authselect
+profile rather than by editing the file.
+
+**Do not hand-edit `/etc/pam.d/system-auth`.** Between Sep 2025 and Sep 2026
+this host was opted out of authselect entirely: `/etc/authselect/` was deleted
+and the five managed files were left as frozen copies of authselect's output
+with the Howdy line added. Because rpm-ostree preserves host `/etc` forever,
+those copies never received Fedora's updates. The F42 to F44 rebase then broke
+them: F44 replaced `pam_lastlog.so` with `pam_lastlog2.so`, so every login and
+every `sudo` logged `PAM unable to dlopen(/usr/lib64/security/pam_lastlog.so)`
+and `PAM adding faulty module`. Non-fatal, but it only degrades further.
+
+The profile symlinks every template back to the base profile, so `system-auth`
+is the only file it owns and Fedora's updates to the rest keep flowing:
+
+```bash
+sudo authselect create-profile howdy -b local \
+    --symlink-meta --symlink-nsswitch --symlink-dconf \
+    -s password-auth -s postlogin -s fingerprint-auth -s smartcard-auth
+```
+
+Then add this to `/etc/authselect/custom/howdy/system-auth`, immediately above
+the `pam_fprintd.so` line:
+
+```
+auth        sufficient                                   pam_howdy.so                                           {include if "with-howdy"}
+```
+
+and select it (the features match what the Bluefin image ships, plus
+fingerprint and Howdy):
+
+```bash
+sudo authselect select custom/howdy \
+    with-silent-lastlog with-mdns4 with-fingerprint with-howdy --force
+sudo dconf update
+```
+
+Notes:
+
+- **`authselect test` renders the whole configuration without root and without
+  writing anything.** Always diff it against the live files before running a
+  `--force` select:
+  `authselect test custom/howdy with-silent-lastlog with-mdns4 with-fingerprint with-howdy`
+- `--force` is required because it overwrites `/etc/pam.d/{system,password,postlogin,fingerprint,smartcard,switchable}-auth`,
+  `/etc/nsswitch.conf` and `/etc/dconf/db/distro.d/20-authselect`. Back those
+  up first, and keep an already-authenticated root shell open in another
+  terminal while you do it — it does not re-authenticate, so it is the way
+  back in if the result is wrong.
+- authselect keeps its own backup; `authselect backup-list` shows them.
+- **Kill switch**: re-select without `with-howdy` to drop the line without
+  editing anything. `sudo authselect select custom/howdy with-silent-lastlog
+  with-mdns4 with-fingerprint --force`
+- `authselect check` verifies the configuration is intact.
+- GDM's own files (`gdm-password`, `gdm-fingerprint`, `gdm-autologin`) are not
+  authselect-managed, so their Howdy lines are unaffected by any of this.
+  Note `gdm-password` includes `password-auth`, not `system-auth`; `polkit-1`
+  lives in `/usr/lib/pam.d/` and includes `system-auth`.
+- The profile lives in `/etc`, so it reaches this host only. A fresh install
+  from the image has to run the commands above again.
 
 ## Switching to a Different IR Camera
 
