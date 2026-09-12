@@ -5,8 +5,16 @@ name: mybluefin-os
 # description will be included in the image's metadata
 description: This is my personal Bluefin OS dx image, with Chrome and 1Password.
 
-# the base image to build on top of (FROM) and the version tag to use
-base-image: ghcr.io/ublue-os/bluefin-dx-nvidia
+# the base image to build on top of (FROM) and the version tag to use.
+#
+# Must be the "-open" (open kernel module) NVIDIA variant: ublue-os retired the
+# proprietary-driver `bluefin-dx-nvidia` image, whose last publish was
+# 2025-10-24. Builds kept succeeding against that dead tag, so this image got
+# new digests daily while every package inherited from the base -- VS Code,
+# the kernel, Mesa, GNOME, all of Fedora 42 -- stayed frozen at October 2025.
+# The open modules are the right choice for this box anyway: NVIDIA recommends
+# them for Turing and newer, and the GPU here is an Ada AD106 (RTX 4060 Ti).
+base-image: ghcr.io/ublue-os/bluefin-dx-nvidia-open
 image-version: latest # latest is also supported if you want new updates ASAP
 
 # module configuration, executed in order
