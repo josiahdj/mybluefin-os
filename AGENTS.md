@@ -11,6 +11,22 @@ with BlueBuild. `recipes/recipe.yml` is the entry point. Scripts in
   [docs/howdy/README.md](docs/howdy/README.md)
 - **VFIO GPU passthrough**: [docs/vfio-passthrough/README.md](docs/vfio-passthrough/README.md)
 
+## Releases
+
+A successful build on `main` cuts a release. The `release` job in
+`.github/workflows/build.yml` derives the next version from the Conventional
+Commit subjects since the last `vX.Y.Z` tag (`feat:` bumps the minor, a `!` or
+a `BREAKING CHANGE:` footer bumps the major, everything else bumps the patch),
+adds that tag to the image already in the registry, and creates the GitHub
+Release. Commit messages must therefore follow Conventional Commits.
+
+The nightly schedule rebuilds onto a refreshed upstream base with no commits of
+our own, so the job skips the release when the digest it just pushed already
+matches the digest behind the previous version tag.
+
+Preview the next version locally with
+`git fetch --tags && .github/scripts/next-version.sh`.
+
 ## Things That Commonly Trip Agents Up
 
 - Changes to files under `/etc` in the image only reach fresh installs.
