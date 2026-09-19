@@ -27,8 +27,12 @@ if [ -z "${SEM:-}" ]; then
   exit 0
 fi
 
-# Only act on SELinux-enabled systems
-if ! sestatus >/dev/null 2>&1 || ! sestatus 2>/dev/null | grep -q 'enabled'; then
+# Only act on SELinux-enabled systems. selinuxenabled answers exactly this
+# through is_selinux_enabled() and exits 0 or 1, where sestatus prints a report
+# for humans and reuses one "enabled" string across its status lines, so the
+# grep matches anywhere in that report rather than on the status line.
+if ! selinuxenabled 2>/dev/null; then
+  log "SELinux is not enabled; skipping"
   exit 0
 fi
 
