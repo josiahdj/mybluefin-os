@@ -40,3 +40,132 @@ jobs:
 
           # enabled by default, disable if your image is small and you want faster builds
           maximize_build_space: true
+
+  release:
+    name: Tag and release
+    needs: bluebuild
+    # A pull request build pushes only a PR-tagged image, and the push trigger
+    # here is not branch-filtered, so both guards are needed.
+    if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write # create the git tag and the GitHub Release
+      packages: write # add the version tag to the already-pushed image
+
+    steps:
+      - name: Prepare environment
+        run: |
+          # The blue-build action publishes to <registry>/<owner>/<recipe name>,
+          # and the recipe name matches the repo name.
+          image="ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}"
+          echo "IMAGE=${image,,}" >> "${GITHUB_ENV}"
+
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # next-version.sh reads every tag and every commit back to the last
+          # release, so the default shallow single-branch clone will not do.
+          fetch-depth: 0
+
+      - name: Determine next version
+        id: version
+        run: |
+          set -euo pipefail
+          # Same glob as next-version.sh uses, to identify the release this
+          # build is being compared against.
+          previous="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)"
+          next="$(.github/scripts/next-version.sh)"
+          echo "previous=${previous}" >> "$GITHUB_OUTPUT"
+          echo "next=${next}" >> "$GITHUB_OUTPUT"
+          echo "Previous release: ${previous:-<none>}"
+          echo "Next release:     ${next}"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install crane
+        env:
+          CRANE_VERSION: v0.22.1
+          CRANE_SHA256: 0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0
+        run: |
+          set -euo pipefail
+          url="https://github.com/google/go-containerregistry/releases/download/${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz"
+          curl -fsSL --retry 5 -o crane.tar.gz "$url"
+          echo "${CRANE_SHA256}  crane.tar.gz" | sha256sum --check --strict
+          tar -xzf crane.tar.gz crane
+          sudo install -m 0755 crane /usr/local/bin/crane
+          rm -f crane crane.tar.gz
+          crane version
+
+      - name: Resolve the pushed image digest
+        id: image
+        run: |
+          set -euo pipefail
+          # The blue-build action declares no outputs, so the digest has to be
+          # read back from the tag it just pushed. The workflow's concurrency
+          # group keeps a second build from racing this lookup.
+          digest="$(crane digest "${IMAGE}:latest")"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "Built ${IMAGE}@${digest}"
+
+      - name: Check whether the image actually changed
+        id: guard
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        run: |
+          set -euo pipefail
+          # The nightly schedule rebuilds from an updated upstream base, so it
+          # pushes even when no commit has landed. Release that only when the
+          # bytes differ from the last release, so every version number
+          # corresponds to a genuinely distinct image.
+          if [[ -z "$PREVIOUS" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          previous_digest="$(crane digest "${IMAGE}:${PREVIOUS}" 2>/dev/null || true)"
+          if [[ -n "$previous_digest" && "$previous_digest" == "$DIGEST" ]]; then
+            echo "::notice::${PREVIOUS} already points at ${DIGEST}; skipping release"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag the image with the version
+        if: steps.guard.outputs.changed == 'true'
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+          NEXT: ${{ steps.version.outputs.next }}
+        run: |
+          set -euo pipefail
+          # `crane tag` re-points a tag at manifest bytes that already exist in
+          # the registry, so the digest is unchanged and the cosign signature
+          # the blue-build action attached still verifies through the new tag.
+          # `docker buildx imagetools create` is not usable here: given a single
+          # source that is not an index it wraps it in a new manifest list under
+          # a different digest, which would both break signature verification by
+          # tag and stop the digest guard above from ever matching.
+          crane tag "${IMAGE}@${DIGEST}" "${NEXT}"
+
+      - name: Create the release
+        if: steps.guard.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+          NEXT: ${{ steps.version.outputs.next }}
+        run: |
+          set -euo pipefail
+          notes="$(printf 'Image: `%s:%s`\nDigest: `%s`\n' "$IMAGE" "$NEXT" "$DIGEST")"
+          # --target creates the tag at this exact commit, so no separate
+          # `git tag && git push` is needed. --notes is prepended to the notes
+          # GitHub generates from the PRs merged since the last release.
+          gh release create "$NEXT" \
+            --target "$GITHUB_SHA" \
+            --title "$NEXT" \
+            --generate-notes \
+            --notes "$notes"
