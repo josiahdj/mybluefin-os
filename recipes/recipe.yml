@@ -37,6 +37,10 @@ modules:
     scripts:
       - install-1password.sh # install 1Password (stable) and `op` CLI tool
 
+  - type: script
+    scripts:
+      - install-openlogi.sh # install OpenLogi (Logitech device manager, replaces Solaar)
+
   - type: signing # this sets up the proper policy & signing files for signed images to work fully
 
   - type: script
