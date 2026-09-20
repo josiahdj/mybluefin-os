@@ -23,14 +23,17 @@ curl --fail --silent --show-error --location \
 
 echo "${OPENLOGI_SHA256}  ${workdir}/${OPENLOGI_RPM}" | sha256sum --check --status
 
-rpm-ostree install "${workdir}/${OPENLOGI_RPM}"
+# --noscripts: the rpm's %post runs `udevadm control --reload-rules` under
+# `set -e`, which fails in a build container (no udev daemon to talk to) and
+# aborts the whole rpm-ostree transaction ("Failed to send reload request").
+# That scriptlet only reloads udev and refreshes icon caches, none of which
+# applies at image build time; the udev rule is loaded at boot anyway.
+rpm --install --noscripts "${workdir}/${OPENLOGI_RPM}"
 
-# The rpm already ships /etc/udev/rules.d/70-openlogi.rules (hidraw/uinput/
-# input-event access for the active seat user) and
-# /usr/lib/systemd/user/openlogi-agent.service. Neither the udev rule reload
-# nor the systemd unit is enabled by installing the package -- OpenLogi's own
-# docs treat enabling the agent as a per-user opt-in step, not something the
-# package does for you, so this doesn't override that.
+# The rpm ships /etc/udev/rules.d/70-openlogi.rules (hidraw/uinput/input-event
+# access for the active seat user) and /usr/lib/systemd/user/openlogi-agent.service.
+# Enabling the agent is a per-user opt-in step in OpenLogi's own docs, so this
+# doesn't override that.
 echo "OpenLogi installed successfully."
 echo "NOTE: OpenLogi and Solaar can't run at the same time; both fight over HID++ access."
 echo "NOTE: after rebasing, enable the background agent for your user session with:"
