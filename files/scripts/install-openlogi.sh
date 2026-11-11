@@ -28,7 +28,12 @@ echo "${OPENLOGI_SHA256}  ${workdir}/${OPENLOGI_RPM}" | sha256sum --check --stat
 # aborts the whole rpm-ostree transaction ("Failed to send reload request").
 # That scriptlet only reloads udev and refreshes icon caches, none of which
 # applies at image build time; the udev rule is loaded at boot anyway.
-rpm --install --noscripts "${workdir}/${OPENLOGI_RPM}"
+#
+# --nosignature: upstream doesn't GPG-sign its rpms, and Fedora 45's RPM 6.1
+# defaults to %_pkgverify_level "all", which refuses unsigned packages ("does
+# not verify: no signature"). Integrity is already enforced by the pinned
+# SHA256 check above, and rpm still verifies the package's internal digests.
+rpm --install --noscripts --nosignature "${workdir}/${OPENLOGI_RPM}"
 
 # The rpm ships /etc/udev/rules.d/70-openlogi.rules (hidraw/uinput/input-event
 # access for the active seat user) and /usr/lib/systemd/user/openlogi-agent.service.
