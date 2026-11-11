@@ -66,7 +66,7 @@ jobs:
           echo "IMAGE=${image,,}" >> "${GITHUB_ENV}"
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # next-version.sh reads every tag and every commit back to the last
           # release, so the default shallow single-branch clone will not do.
